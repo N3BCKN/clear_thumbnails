@@ -26,19 +26,62 @@ function replaceThumbnails() {
 }
 
 function replaceVideowallThumbnails() {
-  const videowallStills = document.querySelectorAll('.ytp-videowall-still');
-  
-  videowallStills.forEach(still => {
-    const thumbnailElement = still.querySelector('.ytp-videowall-still-image');
-    const titleElement = still.querySelector('.ytp-videowall-still-info-title');
-    const durationElement = still.querySelector('.ytp-videowall-still-info-duration');
-    
-    if (thumbnailElement && titleElement && !thumbnailElement.dataset.replaced) {
-      const title = titleElement.textContent.trim();
-      const duration = durationElement ? durationElement.textContent.trim() : '';
-      replaceSingleThumbnail(thumbnailElement, title, duration, true);
+  const maxAttempts = 5;
+  let attempts = 0;
+
+  function attemptReplace() {
+    const videowallStills = document.querySelectorAll('.ytp-videowall-still');
+    let replacedCount = 0;
+
+    videowallStills.forEach(still => {
+      const thumbnailElement = still.querySelector('.ytp-videowall-still-image');
+      const titleElement = still.querySelector('.ytp-videowall-still-info-title');
+      const durationElement = still.querySelector('.ytp-videowall-still-info-duration');
+
+      if (thumbnailElement && titleElement && !still.dataset.replaced) {
+        const title = titleElement.textContent.trim();
+        const duration = durationElement ? durationElement.textContent.trim() : '';
+        
+        const dummyThumbnail = document.createElement('div');
+        dummyThumbnail.className = 'dummy-thumbnail videowall-thumbnail';
+        dummyThumbnail.style.width = '100%';
+        dummyThumbnail.style.height = '100%';
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = title;
+        titleSpan.className = 'dummy-thumbnail-title';
+        dummyThumbnail.appendChild(titleSpan);
+        
+        if (duration) {
+          const durationSpan = document.createElement('span');
+          durationSpan.textContent = duration;
+          durationSpan.className = 'dummy-thumbnail-duration';
+          dummyThumbnail.appendChild(durationSpan);
+        }
+        
+        thumbnailElement.style.backgroundImage = 'none';
+        thumbnailElement.appendChild(dummyThumbnail);
+        still.dataset.replaced = 'true';
+        replacedCount++;
+      }
+    });
+
+    if (replacedCount === 0 && attempts < maxAttempts) {
+      attempts++;
+      setTimeout(attemptReplace, 500); // Próbuj ponownie po 500ms
     }
-  });
+  }
+
+  attemptReplace();
+}
+
+function checkForVideoEnd() {
+  const video = document.querySelector('video');
+  if (video) {
+    video.addEventListener('ended', () => {
+      setTimeout(replaceVideowallThumbnails, 100);
+    });
+  }
 }
 
 function replaceShortsThumbnails() {
@@ -151,7 +194,10 @@ function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
   container.dataset.replaced = 'true';
 }
 
-document.addEventListener('DOMContentLoaded', replaceThumbnails);
+document.addEventListener('DOMContentLoaded', () => {
+  checkForVideoEnd();
+  replaceThumbnails
+});
 
 
 const observer = new MutationObserver(mutations => {
