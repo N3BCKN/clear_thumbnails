@@ -1,5 +1,5 @@
 function replaceThumbnails() {
-  // Ujednolicony selektor dla wszystkich typów miniatur na YouTube
+
   const thumbnailContainers = document.querySelectorAll('ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, ytd-grid-video-renderer');
   
   thumbnailContainers.forEach(container => {
@@ -13,19 +13,32 @@ function replaceThumbnails() {
   });
 
   // Przypadek dla sugerowanych filmów na ekranie po obejrzeniu filmu
+  replaceVideowallThumbnails();
+  
+
+  // Przypadek dla Shorts
+  replaceShortsThumbnails();
+  
+
+  // playlists
+  replacePlaylistThumbnails();
+  
+}
+
+function replaceVideowallThumbnails() {
   const videowallStills = document.querySelectorAll('.ytp-videowall-still');
   
   videowallStills.forEach(still => {
     const thumbnailElement = still.querySelector('.ytp-videowall-still-image');
     const titleElement = still.querySelector('.ytp-videowall-still-info-title');
+    const durationElement = still.querySelector('.ytp-videowall-still-info-duration');
     
     if (thumbnailElement && titleElement && !thumbnailElement.dataset.replaced) {
-      replaceSingleThumbnail(thumbnailElement, titleElement.textContent.trim(), true);
+      const title = titleElement.textContent.trim();
+      const duration = durationElement ? durationElement.textContent.trim() : '';
+      replaceSingleThumbnail(thumbnailElement, title, duration, true);
     }
   });
-
-  replaceVideowallThumbnails();
-  replaceShortsThumbnails();
 }
 
 function replaceShortsThumbnails() {
@@ -45,6 +58,73 @@ function replaceShortsThumbnails() {
   });
 }
 
+function replacePlaylistThumbnails() {
+  const playlistThumbnails = document.querySelectorAll('ytd-playlist-thumbnail');
+  
+  playlistThumbnails.forEach(thumbnail => {
+    const thumbnailElement = thumbnail.querySelector('yt-image img');
+    const titleElement = thumbnail.closest('ytd-rich-grid-media').querySelector('#video-title');
+    
+    if (thumbnailElement && titleElement && !thumbnailElement.dataset.replaced) {
+      const title = titleElement.textContent.trim();
+      
+      const dummyThumbnail = document.createElement('div');
+      dummyThumbnail.className = 'dummy-thumbnail playlist-thumbnail';
+      dummyThumbnail.style.width = `${thumbnailElement.width}px`;
+      dummyThumbnail.style.height = `${thumbnailElement.height}px`;
+      
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = title;
+      titleSpan.className = 'dummy-thumbnail-title';
+      dummyThumbnail.appendChild(titleSpan);
+      
+      const wrapper = thumbnail.querySelector('#playlist-thumbnails');
+      wrapper.innerHTML = '';
+      wrapper.appendChild(dummyThumbnail);
+      thumbnailElement.dataset.replaced = 'true';
+    }
+  });
+}
+
+function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall = false) {
+  const width = isVideowall ? thumbnailElement.offsetWidth : thumbnailElement.width;
+  const height = isVideowall ? thumbnailElement.offsetHeight : thumbnailElement.height;
+  
+  const dummyThumbnail = document.createElement('div');
+  dummyThumbnail.className = 'dummy-thumbnail';
+  dummyThumbnail.style.width = `${width}px`;
+  dummyThumbnail.style.height = `${height}px`;
+  
+  const titleSpan = document.createElement('span');
+  titleSpan.textContent = title;
+  titleSpan.className = 'dummy-thumbnail-title';
+  dummyThumbnail.appendChild(titleSpan);
+  
+  if (duration) {
+    const durationSpan = document.createElement('span');
+    durationSpan.textContent = duration;
+    durationSpan.className = 'dummy-thumbnail-duration';
+    dummyThumbnail.appendChild(durationSpan);
+  }
+  
+  if (isVideowall) {
+    thumbnailElement.style.backgroundImage = 'none';
+    thumbnailElement.appendChild(dummyThumbnail);
+  } else {
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    wrapper.appendChild(dummyThumbnail);
+  
+
+    const durationElement = thumbnailElement.closest('ytd-thumbnail').querySelector('ytd-thumbnail-overlay-time-status-renderer');
+    if (durationElement) {
+      wrapper.appendChild(durationElement);
+    }
+    
+    thumbnailElement.parentNode.replaceChild(wrapper, thumbnailElement);
+  }
+  thumbnailElement.dataset.replaced = 'true';
+}
 
 function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
   const container = thumbnailElement.closest('.ShortsLockupViewModelHostThumbnailContainer');
@@ -65,88 +145,15 @@ function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
     dummyThumbnail.appendChild(viewsSpan);
   }
   
-  // Zamiast zastępować element, dodajemy nasz element jako dziecko kontenera
+
   container.innerHTML = '';
   container.appendChild(dummyThumbnail);
   container.dataset.replaced = 'true';
 }
 
-
-function replaceVideowallThumbnails() {
-  const videowallStills = document.querySelectorAll('.ytp-videowall-still');
-  
-  videowallStills.forEach(still => {
-    if (!still.dataset.replaced) {
-      const thumbnailElement = still.querySelector('.ytp-videowall-still-image');
-      const titleElement = still.querySelector('.ytp-videowall-still-info-title');
-      const durationElement = still.querySelector('.ytp-videowall-still-info-duration');
-      
-      if (thumbnailElement && titleElement) {
-        const title = titleElement.textContent.trim();
-        const duration = durationElement ? durationElement.textContent.trim() : '';
-        
-        const dummyThumbnail = document.createElement('div');
-        dummyThumbnail.className = 'dummy-thumbnail videowall-thumbnail';
-        dummyThumbnail.style.width = '100%';
-        dummyThumbnail.style.height = '100%';
-        
-        const titleSpan = document.createElement('span');
-        titleSpan.textContent = title;
-        titleSpan.className = 'dummy-thumbnail-title';
-        dummyThumbnail.appendChild(titleSpan);
-        
-        if (duration) {
-          const durationSpan = document.createElement('span');
-          durationSpan.textContent = duration;
-          durationSpan.className = 'dummy-thumbnail-duration';
-          dummyThumbnail.appendChild(durationSpan);
-        }
-        
-        still.style.backgroundImage = 'none';
-        still.appendChild(dummyThumbnail);
-        still.dataset.replaced = 'true';
-      }
-    }
-  });
-}
-
-function replaceSingleThumbnail(thumbnailElement, title, isVideowall = false) {
-  const width = isVideowall ? thumbnailElement.offsetWidth : thumbnailElement.width;
-  const height = isVideowall ? thumbnailElement.offsetHeight : thumbnailElement.height;
-  
-  const dummyThumbnail = document.createElement('div');
-  dummyThumbnail.className = 'dummy-thumbnail';
-  dummyThumbnail.style.width = `${width}px`;
-  dummyThumbnail.style.height = `${height}px`;
-  
-  const titleSpan = document.createElement('span');
-  titleSpan.textContent = title;
-  titleSpan.className = 'dummy-thumbnail-title';
-  dummyThumbnail.appendChild(titleSpan);
-  
-  if (isVideowall) {
-    thumbnailElement.style.backgroundImage = 'none';
-    thumbnailElement.appendChild(dummyThumbnail);
-  } else {
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'relative';
-    wrapper.appendChild(dummyThumbnail);
-    
-    // Przenosimy oryginalny element z czasem trwania do naszego wrappera
-    const durationElement = thumbnailElement.closest('ytd-thumbnail').querySelector('ytd-thumbnail-overlay-time-status-renderer');
-    if (durationElement) {
-      wrapper.appendChild(durationElement);
-    }
-    
-    thumbnailElement.parentNode.replaceChild(wrapper, thumbnailElement);
-  }
-  thumbnailElement.dataset.replaced = 'true';
-}
-
-// Uruchom funkcję po załadowaniu strony
 document.addEventListener('DOMContentLoaded', replaceThumbnails);
 
-// Obserwuj zmiany w DOM
+
 const observer = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
     if (mutation.addedNodes.length) {
@@ -160,5 +167,5 @@ observer.observe(document.body, {
   subtree: true 
 });
 
-// Dodatkowe sprawdzenie co 1 sekundę dla pewności
-setInterval(replaceThumbnails, 1000);
+
+setInterval(replaceThumbnails, 2000);
