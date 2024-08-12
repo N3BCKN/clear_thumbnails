@@ -1,44 +1,41 @@
 function replaceThumbnails() {
-
+  // Ujednolicony selektor dla wszystkich typów miniatur na YouTube
   const thumbnailContainers = document.querySelectorAll('ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, ytd-grid-video-renderer');
   
   thumbnailContainers.forEach(container => {
     const thumbnailElement = container.querySelector('ytd-thumbnail img');
     const titleElement = container.querySelector('#video-title, #title > yt-formatted-string');
+    const durationElement = container.querySelector('ytd-thumbnail-overlay-time-status-renderer');
     
     if (thumbnailElement && titleElement && !thumbnailElement.dataset.replaced) {
       const title = titleElement.textContent.trim() || titleElement.getAttribute('title');
-      replaceSingleThumbnail(thumbnailElement, title);
+      let duration = '';
+      if (durationElement) {
+        const durationText = durationElement.querySelector('.badge-shape-wiz__text, #text');
+        if (durationText) {
+          duration = durationText.textContent.trim();
+        }
+      }
+      replaceSingleThumbnail(thumbnailElement, title, duration);
     }
   });
 
-  // Przypadek dla sugerowanych filmów na ekranie po obejrzeniu filmu
+  // Zawsze wywołuj funkcje dla różnych typów miniatur
   replaceVideowallThumbnails();
-  
-
-  // Przypadek dla Shorts
   replaceShortsThumbnails();
-  
-
-  // playlists
   replacePlaylistThumbnails();
-  
 }
 
 function replaceVideowallThumbnails() {
-  const maxAttempts = 5;
-  let attempts = 0;
-
-  function attemptReplace() {
-    const videowallStills = document.querySelectorAll('.ytp-videowall-still');
-    let replacedCount = 0;
-
-    videowallStills.forEach(still => {
+  const videowallStills = document.querySelectorAll('.ytp-videowall-still');
+  
+  videowallStills.forEach(still => {
+    if (!still.dataset.replaced) {
       const thumbnailElement = still.querySelector('.ytp-videowall-still-image');
       const titleElement = still.querySelector('.ytp-videowall-still-info-title');
       const durationElement = still.querySelector('.ytp-videowall-still-info-duration');
-
-      if (thumbnailElement && titleElement && !still.dataset.replaced) {
+      
+      if (thumbnailElement && titleElement) {
         const title = titleElement.textContent.trim();
         const duration = durationElement ? durationElement.textContent.trim() : '';
         
@@ -62,17 +59,9 @@ function replaceVideowallThumbnails() {
         thumbnailElement.style.backgroundImage = 'none';
         thumbnailElement.appendChild(dummyThumbnail);
         still.dataset.replaced = 'true';
-        replacedCount++;
       }
-    });
-
-    if (replacedCount === 0 && attempts < maxAttempts) {
-      attempts++;
-      setTimeout(attemptReplace, 500); // Próbuj ponownie po 500ms
     }
-  }
-
-  attemptReplace();
+  });
 }
 
 function checkForVideoEnd() {
@@ -143,11 +132,33 @@ function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall =
   titleSpan.className = 'dummy-thumbnail-title';
   dummyThumbnail.appendChild(titleSpan);
   
+  const durationSpan = document.createElement('span');
+  durationSpan.className = 'dummy-thumbnail-duration';
+  dummyThumbnail.appendChild(durationSpan);
+  
   if (duration) {
-    const durationSpan = document.createElement('span');
     durationSpan.textContent = duration;
-    durationSpan.className = 'dummy-thumbnail-duration';
-    dummyThumbnail.appendChild(durationSpan);
+  } else {
+    // Jeśli czas trwania nie jest dostępny, spróbujmy go pobrać później
+    const thumbnailContainer = thumbnailElement.closest('ytd-thumbnail');
+    if (thumbnailContainer) {
+      const observer = new MutationObserver((mutations) => {
+        for (let mutation of mutations) {
+          if (mutation.type === 'childList') {
+            const durationElement = thumbnailContainer.querySelector('ytd-thumbnail-overlay-time-status-renderer');
+            if (durationElement) {
+              const durationText = durationElement.querySelector('.badge-shape-wiz__text, #text');
+              if (durationText) {
+                durationSpan.textContent = durationText.textContent.trim();
+                observer.disconnect();
+                break;
+              }
+            }
+          }
+        }
+      });
+      observer.observe(thumbnailContainer, { childList: true, subtree: true });
+    }
   }
   
   if (isVideowall) {
@@ -157,12 +168,6 @@ function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall =
     const wrapper = document.createElement('div');
     wrapper.style.position = 'relative';
     wrapper.appendChild(dummyThumbnail);
-  
-
-    const durationElement = thumbnailElement.closest('ytd-thumbnail').querySelector('ytd-thumbnail-overlay-time-status-renderer');
-    if (durationElement) {
-      wrapper.appendChild(durationElement);
-    }
     
     thumbnailElement.parentNode.replaceChild(wrapper, thumbnailElement);
   }
@@ -194,6 +199,26 @@ function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
   container.dataset.replaced = 'true';
 }
 
+function observeVideowall() {
+  const videoPlayer = document.querySelector('.html5-video-player');
+  if (videoPlayer) {
+    const observer = new MutationObserver((mutations) => {
+      for (let mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          for (let node of mutation.addedNodes) {
+            if (node.classList && node.classList.contains('ytp-videowall-still')) {
+              replaceVideowallThumbnails();
+              break;
+            }
+          }
+        }
+      }
+    });
+    
+    observer.observe(videoPlayer, { childList: true, subtree: true });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   checkForVideoEnd();
   replaceThumbnails
@@ -215,3 +240,4 @@ observer.observe(document.body, {
 
 
 setInterval(replaceThumbnails, 2000);
+observeVideowall();
