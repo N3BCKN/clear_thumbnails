@@ -1,4 +1,4 @@
-// Funkcja do ukrycia wszystkich miniatur natychmiast po załadowaniu strony
+
 function hideAllThumbnails() {
   const style = document.createElement('style');
   style.textContent = `
@@ -12,10 +12,9 @@ function hideAllThumbnails() {
   document.head.appendChild(style);
 }
 
-// Wywołaj funkcję hideAllThumbnails natychmiast
+
 hideAllThumbnails();
 
-// Reszta kodu pozostaje bez zmian
 function replaceThumbnails() {
   replaceMainThumbnails();
   replaceVideowallThumbnails();
@@ -40,7 +39,7 @@ function replaceMainThumbnails() {
 }
 
 function getDurationText(container) {
-  const durationElement = container.querySelector('ytd-thumbnail-overlay-time-status-renderer');
+  const durationElement = container.querySelector('ytd-thumbnail-overlay-time-status-renderer span, badge-shape-wiz__text');
   return durationElement ? durationElement.textContent.trim() : '';
 }
 
@@ -105,15 +104,17 @@ function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall =
   if (isVideowall) {
     thumbnailElement.style.backgroundImage = 'none';
     thumbnailElement.style.visibility = 'visible';
+    thumbnailElement.innerHTML = ''; // Clear existing content
     thumbnailElement.appendChild(dummyThumbnail);
   } else {
     const wrapper = document.createElement('div');
     wrapper.style.position = 'relative';
     wrapper.appendChild(dummyThumbnail);
-  
-    const durationElement = thumbnailElement.closest('ytd-thumbnail')?.querySelector('ytd-thumbnail-overlay-time-status-renderer');
-    if (durationElement) {
-      wrapper.appendChild(durationElement);
+    
+ 
+    const originalDurationElement = thumbnailElement.closest('ytd-thumbnail')?.querySelector('ytd-thumbnail-overlay-time-status-renderer');
+    if (originalDurationElement) {
+      originalDurationElement.remove();
     }
     
     thumbnailElement.parentNode.replaceChild(wrapper, thumbnailElement);
@@ -194,22 +195,19 @@ function createPlaylistDummyThumbnail(thumbnailElement, title) {
   return dummyThumbnail;
 }
 
-// Run the thumbnail replacement periodically
-// Zmodyfikowane wywołanie skryptu
 function initThumbnailReplacement() {
   replaceThumbnails();
-  // Usuwamy opóźnienie i zwiększamy częstotliwość sprawdzania
   setInterval(replaceThumbnails, 100);
 }
 
-// Natychmiastowe uruchomienie skryptu
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initThumbnailReplacement);
 } else {
   initThumbnailReplacement();
 }
 
-// Nasłuchiwanie zmian URL
+
 let lastUrl = location.href;
 new MutationObserver(() => {
   const url = location.href;
@@ -219,7 +217,7 @@ new MutationObserver(() => {
   }
 }).observe(document, {subtree: true, childList: true});
 
-// Optymalizacja obsługi przewijania
+
 let scrollTimeout;
 window.addEventListener('scroll', () => {
   clearTimeout(scrollTimeout);
@@ -228,7 +226,7 @@ window.addEventListener('scroll', () => {
   }, 100);
 });
 
-// Dodanie obserwatora mutacji dla dynamicznie ładowanych treści
+
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
     if (mutation.type === 'childList') {
