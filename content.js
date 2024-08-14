@@ -200,37 +200,109 @@ function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
 }
 
 function observeVideowall() {
+  if (!location.pathname.includes('/watch')) return;
+
   const videoPlayer = document.querySelector('.html5-video-player');
   if (videoPlayer) {
     const observer = new MutationObserver((mutations) => {
       for (let mutation of mutations) {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          for (let node of mutation.addedNodes) {
-            if (node.classList && node.classList.contains('ytp-videowall-still')) {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.classList && 
+                (node.classList.contains('ytp-endscreen-content') || 
+                 node.classList.contains('ytp-videowall-still'))) {
               replaceVideowallThumbnails();
-              break;
             }
-          }
+          });
         }
       }
     });
     
     observer.observe(videoPlayer, { childList: true, subtree: true });
+
+    // Dodatkowy obserwator dla zmian w całym playerze
+    const playerObserver = new MutationObserver(() => {
+      replaceVideowallThumbnails();
+    });
+
+    playerObserver.observe(videoPlayer, {
+      attributes: true,
+      attributeFilter: ['class'],
+      subtree: false
+    });
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  checkForVideoEnd();
-  replaceThumbnails
-});
+let videoPageInterval;
+
+function watchForURLChanges() {
+  let lastUrl = location.href;
+
+  console.log("LAST URL: " + lastUrl)
+  
+  function handleURLChange() {
+    const currentUrl = location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      if (currentUrl.includes('/watch')) {
+        console.log("Jesteśmy na stronie z filmem")
+        startVideoPageInterval();
+      } else {
+        
+        console.log("Opuściliśmy stronę z filmem")
+        stopVideoPageInterval();
+      }
+    }
+  }
+
+
+  handleURLChange();
+
+
+  new MutationObserver(handleURLChange).observe(document, {subtree: true, childList: true});
+}
+
+function startVideoPageInterval() {
+  if (!videoPageInterval) {
+    videoPageInterval = setInterval(() => {
+      console.log('sprawdzanie...')
+      replaceVideowallThumbnails();
+    }, 1000);
+  }
+}
+
+function stopVideoPageInterval() {
+  if (videoPageInterval) {
+    clearInterval(videoPageInterval);
+    videoPageInterval = null;
+  }
+}
+
+const observerOptions = {
+  root: null,
+  rootMargin: '200px', 
+  threshold: 0.1
+};
+
+const thumbnailObserver = new IntersectionObserver((entries) => {
+  if (entries.some(entry => entry.isIntersecting)) {
+    replaceThumbnails();
+  }
+}, observerOptions);
+
+function observeNewThumbnails() {
+  const thumbnails = document.querySelectorAll('ytd-thumbnail:not([data-observed])');
+  thumbnails.forEach(thumbnail => {
+    thumbnailObserver.observe(thumbnail);
+    thumbnail.dataset.observed = 'true';
+  });
+}
 
 
 const observer = new MutationObserver(mutations => {
-  mutations.forEach(mutation => {
-    if (mutation.addedNodes.length) {
-      replaceThumbnails();
-    }
-  });
+  if (mutations.some(mutation => mutation.addedNodes.length > 0)) {
+    observeNewThumbnails();
+  }
 });
 
 observer.observe(document.body, { 
@@ -238,6 +310,10 @@ observer.observe(document.body, {
   subtree: true 
 });
 
-
-setInterval(replaceThumbnails, 2000);
-observeVideowall();
+// Inicjalizacja
+document.addEventListener('DOMContentLoaded', () => {
+  checkForVideoEnd();
+  replaceThumbnails();
+  observeNewThumbnails();
+  watchForURLChanges();
+});
