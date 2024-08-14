@@ -1,8 +1,13 @@
 let isEnabled = true;
+let bgColor = '#d3d3d3';
+let textColor = '#000080';
+
 
 function initializeExtension() {
-  chrome.storage.sync.get('enabled', function(data) {
+  chrome.storage.sync.get(['enabled', 'bgColor', 'textColor'], function(data) {
     isEnabled = data.enabled !== false;
+    bgColor = data.bgColor || bgColor;
+    textColor = data.textColor || textColor;
     if (isEnabled) {
       checkForVideoEnd();
       replaceThumbnails();
@@ -17,11 +22,22 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     isEnabled = true;
   } else if (request.action === 'disable') {
     isEnabled = false;
+  } else if (request.action === 'updateColors') {
+    if (request.bgColor) bgColor = request.bgColor;
+    if (request.textColor) textColor = request.textColor;
+    updateThumbnailColors();
   }
-  
   sendResponse({status: "Message received"});
-  return true;  // Indicates that the response is sent asynchronously
+  return true;
 });
+
+function updateThumbnailColors() {
+  const dummyThumbnails = document.querySelectorAll('.dummy-thumbnail');
+  dummyThumbnails.forEach(dummy => {
+    dummy.style.backgroundColor = bgColor;
+    dummy.querySelector('.dummy-thumbnail-title').style.color = textColor;
+  });
+}
 
 
 function replaceThumbnails() {

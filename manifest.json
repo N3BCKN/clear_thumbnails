@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Thumbnail Replacer",
+  "name": "Clear Thumbnail",
   "version": "1.0",
-  "description": "Zastępuje miniatury YouTube szarymi obszarami z tytułami",
+  "description": "Replacing youtube thumbnails with clear dummy images with titles",
   "permissions": ["scripting", "storage"],
   "host_permissions": ["https://www.youtube.com/*"],
   "action": {

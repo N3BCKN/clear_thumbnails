@@ -1,5 +1,5 @@
 .dummy-thumbnail {
-  background-color: #d3d3d3;
+  background-color: #d3d3d3; /* This will be overridden by JavaScript */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -22,12 +22,7 @@
   max-height: 2.4em;
   font-size: 16px;
   font-weight: bold;
-  color: #000080;
-  text-shadow: 
-    1px 1px 0 #ffffff,
-    -1px 1px 0 #ffffff,
-    1px -1px 0 #ffffff,
-    -1px -1px 0 #ffffff;
+  color: #000080; /* This will be overridden by JavaScript */
 }
 
 .videowall-thumbnail .dummy-thumbnail-duration {
