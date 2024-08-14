@@ -1,5 +1,33 @@
+let isEnabled = true;
+
+function initializeExtension() {
+  chrome.storage.sync.get('enabled', function(data) {
+    isEnabled = data.enabled !== false;
+    if (isEnabled) {
+      checkForVideoEnd();
+      replaceThumbnails();
+      observeNewThumbnails();
+      watchForURLChanges();
+    }
+  });
+}
+
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === 'enable') {
+    isEnabled = true;
+  } else if (request.action === 'disable') {
+    isEnabled = false;
+  }
+  
+  sendResponse({status: "Message received"});
+  return true;  // Indicates that the response is sent asynchronously
+});
+
+
 function replaceThumbnails() {
-  // Ujednolicony selektor dla wszystkich typów miniatur na YouTube
+  if (!isEnabled) return;
+
+  // for all types of thumbnails
   const thumbnailContainers = document.querySelectorAll('ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, ytd-grid-video-renderer');
   
   thumbnailContainers.forEach(container => {
@@ -20,7 +48,7 @@ function replaceThumbnails() {
     }
   });
 
-  // Zawsze wywołuj funkcje dla różnych typów miniatur
+  
   replaceVideowallThumbnails();
   replaceShortsThumbnails();
   replacePlaylistThumbnails();
@@ -139,7 +167,7 @@ function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall =
   if (duration) {
     durationSpan.textContent = duration;
   } else {
-    // Jeśli czas trwania nie jest dostępny, spróbujmy go pobrać później
+    
     const thumbnailContainer = thumbnailElement.closest('ytd-thumbnail');
     if (thumbnailContainer) {
       const observer = new MutationObserver((mutations) => {
@@ -220,7 +248,7 @@ function observeVideowall() {
     
     observer.observe(videoPlayer, { childList: true, subtree: true });
 
-    // Dodatkowy obserwator dla zmian w całym playerze
+   
     const playerObserver = new MutationObserver(() => {
       replaceVideowallThumbnails();
     });
@@ -311,9 +339,8 @@ observer.observe(document.body, {
 });
 
 // Inicjalizacja
-document.addEventListener('DOMContentLoaded', () => {
-  checkForVideoEnd();
-  replaceThumbnails();
-  observeNewThumbnails();
-  watchForURLChanges();
-});
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeExtension);
+} else {
+  initializeExtension();
+}
