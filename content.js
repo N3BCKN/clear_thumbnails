@@ -1,40 +1,65 @@
-let isEnabled = true;
+let isEnabled = false;
 let bgColor = '#d3d3d3';
 let textColor = '#000080';
 
 function initializeExtension() {
-  chrome.runtime.sendMessage({action: 'getColors'}, function(response) {
-    bgColor = response.bgColor;
-    textColor = response.textColor;
+  chrome.storage.sync.get(['enabled', 'bgColor', 'textColor'], function(data) {
+    isEnabled = data.enabled === true; // Explicitely check for true
+    bgColor = data.bgColor || bgColor;
+    textColor = data.textColor || textColor;
     
-    chrome.storage.sync.get('enabled', function(data) {
-      isEnabled = data.enabled !== false;
-      if (isEnabled) {
-        checkForVideoEnd();
-        replaceThumbnails();
-        replaceMixThumbnails();
-        observeNewThumbnails();
-      }
-    });
+    if (isEnabled) {
+      applyThumbnailReplacements();
+    } else {
+      restoreOriginalThumbnails();
+    }
+    
+    observeNewThumbnails();
   });
 }
+
+function applyThumbnailReplacements() {
+  if (!isEnabled) return;
+  replaceThumbnails();
+  replaceMixThumbnails();
+  replacePlaylistThumbnails();
+  replaceShortsThumbnails();
+  replaceVideowallThumbnails();
+}
+
+function restoreOriginalThumbnails() {
+  const dummyThumbnails = document.querySelectorAll('.dummy-thumbnail');
+  dummyThumbnails.forEach(dummy => {
+    const originalThumbnail = dummy.previousElementSibling;
+    if (originalThumbnail && originalThumbnail.tagName === 'IMG') {
+      originalThumbnail.style.display = '';
+      dummy.remove();
+    }
+  });
+  
+  document.querySelectorAll('[data-replaced]').forEach(el => {
+    el.removeAttribute('data-replaced');
+  });
+}
+
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'enable') {
     isEnabled = true;
-    replaceThumbnails();
-    replaceMixThumbnails();
+    applyThumbnailReplacements();
   } else if (request.action === 'disable') {
     isEnabled = false;
+    restoreOriginalThumbnails();
   } else if (request.action === 'updateColors') {
     if (request.bgColor) bgColor = request.bgColor;
     if (request.textColor) textColor = request.textColor;
-    updateThumbnailColors();
+    if (isEnabled) {
+      updateThumbnailColors();
+    }
   }
   sendResponse({status: "Message received"});
   return true;
 });
-
 
 function updateThumbnailColors() {
   const dummyThumbnails = document.querySelectorAll('.dummy-thumbnail');
@@ -371,26 +396,23 @@ const thumbnailObserver = new IntersectionObserver((entries) => {
 }, observerOptions);
 
 function observeNewThumbnails() {
-  const thumbnails = document.querySelectorAll('ytd-thumbnail:not([data-observed])');
-  thumbnails.forEach(thumbnail => {
-    thumbnailObserver.observe(thumbnail);
-    thumbnail.dataset.observed = 'true';
+  const observer = new MutationObserver(mutations => {
+    if (mutations.some(mutation => mutation.addedNodes.length > 0)) {
+      if (isEnabled) {
+        applyThumbnailReplacements();
+      } else {
+        restoreOriginalThumbnails();
+      }
+    }
+  });
+
+  observer.observe(document.body, { 
+    childList: true, 
+    subtree: true 
   });
 }
 
-const observer = new MutationObserver(mutations => {
-  if (mutations.some(mutation => mutation.addedNodes.length > 0)) {
-    replaceThumbnails();
-    replaceMixThumbnails(); 
-  }
-});
-observer.observe(document.body, { 
-  childList: true, 
-  subtree: true 
-});
-
-
-// initialization
+// Inicjalizacja
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeExtension);
 } else {
