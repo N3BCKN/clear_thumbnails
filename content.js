@@ -13,7 +13,6 @@ function initializeExtension() {
       replaceThumbnails();
       replaceMixThumbnails();
       observeNewThumbnails();
-      watchForURLChanges();
     }
   });
 }
@@ -171,11 +170,18 @@ function replaceShortsThumbnails() {
 }
 
 function replacePlaylistThumbnails() {
-  const playlistThumbnails = document.querySelectorAll('ytd-playlist-thumbnail');
+  const playlistThumbnails = document.querySelectorAll('ytd-playlist-thumbnail, ytd-playlist-renderer, ytd-compact-radio-renderer');
   
   playlistThumbnails.forEach(thumbnail => {
-    const thumbnailElement = thumbnail.querySelector('yt-image img');
-    const titleElement = thumbnail.closest('ytd-rich-grid-media').querySelector('#video-title');
+    if (thumbnail.tagName === 'YTD-PLAYLIST-THUMBNAIL' || thumbnail.tagName === 'YTD-THUMBNAIL'  ) {
+      thumbnailElement = thumbnail.querySelector('yt-image img');
+      titleElement = thumbnail.closest('ytd-rich-grid-media')?.querySelector('#video-title') ||
+                     thumbnail.closest('ytd-grid-video-renderer')?.querySelector('#video-title');
+    } else if (thumbnail.tagName === 'YTD-PLAYLIST-RENDERER') {
+      thumbnailElement = thumbnail.querySelector('ytd-playlist-thumbnail yt-image img');
+      titleElement = thumbnail.querySelector('#video-title') || 
+                     thumbnail.querySelector('h3 span#video-title');
+    }
     
     if (thumbnailElement && titleElement && !thumbnailElement.dataset.replaced) {
       const title = titleElement.textContent.trim();
@@ -310,51 +316,6 @@ function observeVideowall() {
       attributeFilter: ['class'],
       subtree: false
     });
-  }
-}
-
-let videoPageInterval;
-
-function watchForURLChanges() {
-  let lastUrl = location.href;
-
-  console.log("LAST URL: " + lastUrl)
-  
-  function handleURLChange() {
-    const currentUrl = location.href;
-    if (currentUrl !== lastUrl) {
-      lastUrl = currentUrl;
-      if (currentUrl.includes('/watch')) {
-        console.log("Jesteśmy na stronie z filmem")
-        startVideoPageInterval();
-      } else {
-        
-        console.log("Opuściliśmy stronę z filmem")
-        stopVideoPageInterval();
-      }
-    }
-  }
-
-
-  handleURLChange();
-
-
-  new MutationObserver(handleURLChange).observe(document, {subtree: true, childList: true});
-}
-
-function startVideoPageInterval() {
-  if (!videoPageInterval) {
-    videoPageInterval = setInterval(() => {
-      console.log('sprawdzanie...')
-      replaceVideowallThumbnails();
-    }, 1000);
-  }
-}
-
-function stopVideoPageInterval() {
-  if (videoPageInterval) {
-    clearInterval(videoPageInterval);
-    videoPageInterval = null;
   }
 }
 
