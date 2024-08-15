@@ -19,20 +19,6 @@ function initializeExtension() {
   });
 }
 
-// chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-//   if (request.action === 'enable') {
-//     isEnabled = true;
-//   } else if (request.action === 'disable') {
-//     isEnabled = false;
-//   } else if (request.action === 'updateColors') {
-//     if (request.bgColor) bgColor = request.bgColor;
-//     if (request.textColor) textColor = request.textColor;
-//     updateThumbnailColors();
-//   }
-//   sendResponse({status: "Message received"});
-//   return true;
-// });
-
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'enable') {
     isEnabled = true;
@@ -61,32 +47,40 @@ function updateThumbnailColors() {
 function replaceMixThumbnails() {
   if (!isEnabled) return;
   
-  const mixThumbnails = document.querySelectorAll('ytd-rich-item-renderer ytd-playlist-thumbnail');
+  const mixThumbnails = document.querySelectorAll('ytd-rich-item-renderer ytd-playlist-thumbnail, ytd-radio-renderer');
   
   mixThumbnails.forEach(thumbnail => {
-    const container = thumbnail.closest('ytd-rich-item-renderer');
-    if (container && !container.dataset.replaced) {
-      const titleElement = container.querySelector('#video-title-link');
-      const imgElement = thumbnail.querySelector('img.yt-core-image');
+    let container, titleElement, imgElement;
+
+    if (thumbnail.tagName === 'YTD-RADIO-RENDERER') {
+      container = thumbnail;
+      titleElement = thumbnail.querySelector('#video-title');
+      imgElement = thumbnail.querySelector('ytd-playlist-thumbnail img.yt-core-image');
+    } else {
+      container = thumbnail.closest('ytd-rich-item-renderer');
+      titleElement = container.querySelector('#video-title-link');
+      imgElement = thumbnail.querySelector('img.yt-core-image');
+    }
+    
+    if (container && !container.dataset.replaced && titleElement && imgElement) {
+      const title = titleElement.getAttribute('title') || titleElement.textContent.trim();
       
-      if (titleElement && imgElement) {
-        const title = titleElement.getAttribute('title') || titleElement.textContent.trim();
-        
-        const dummyThumbnail = document.createElement('div');
-        dummyThumbnail.className = 'dummy-thumbnail mix-thumbnail';
-        dummyThumbnail.style.width = imgElement.width + 'px';
-        dummyThumbnail.style.height = imgElement.height + 'px';
-        dummyThumbnail.style.backgroundColor = bgColor;
-        
-        const titleSpan = document.createElement('span');
-        titleSpan.textContent = title;
-        titleSpan.className = 'dummy-thumbnail-title';
-        titleSpan.style.color = textColor;
-        dummyThumbnail.appendChild(titleSpan);
-        
-        imgElement.style.display = 'none';
-        imgElement.insertAdjacentElement('afterend', dummyThumbnail);
-        
+      const dummyThumbnail = document.createElement('div');
+      dummyThumbnail.className = 'dummy-thumbnail mix-thumbnail';
+      dummyThumbnail.style.width = `${imgElement.width || imgElement.offsetWidth}px`;
+      dummyThumbnail.style.height = `${imgElement.height || imgElement.offsetHeight}px`;
+      dummyThumbnail.style.backgroundColor = bgColor;
+      
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = title;
+      titleSpan.className = 'dummy-thumbnail-title';
+      titleSpan.style.color = textColor;
+      dummyThumbnail.appendChild(titleSpan);
+      
+      const wrapper = imgElement.closest('#playlist-thumbnails') || imgElement.parentElement;
+      if (wrapper) {
+        wrapper.innerHTML = '';
+        wrapper.appendChild(dummyThumbnail);
         container.dataset.replaced = 'true';
       }
     }
@@ -396,7 +390,7 @@ observer.observe(document.body, {
 });
 
 
-// Inicjalizacja
+// initialization
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeExtension);
 } else {
