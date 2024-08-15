@@ -2,7 +2,6 @@ let isEnabled = true;
 let bgColor = '#d3d3d3';
 let textColor = '#000080';
 
-
 function initializeExtension() {
   chrome.storage.sync.get(['enabled', 'bgColor', 'textColor'], function(data) {
     isEnabled = data.enabled !== false;
@@ -74,11 +73,9 @@ function replaceMixThumbnails() {
   });
 }
 
-
 function replaceThumbnails() {
   if (!isEnabled) return;
 
-  // for all types of thumbnails
   const thumbnailContainers = document.querySelectorAll('ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, ytd-grid-video-renderer');
   
   thumbnailContainers.forEach(container => {
@@ -99,7 +96,6 @@ function replaceThumbnails() {
     }
   });
 
-  
   replaceVideowallThumbnails();
   replaceShortsThumbnails();
   replacePlaylistThumbnails();
@@ -122,10 +118,12 @@ function replaceVideowallThumbnails() {
         dummyThumbnail.className = 'dummy-thumbnail videowall-thumbnail';
         dummyThumbnail.style.width = '100%';
         dummyThumbnail.style.height = '100%';
+        dummyThumbnail.style.backgroundColor = bgColor;
         
         const titleSpan = document.createElement('span');
         titleSpan.textContent = title;
         titleSpan.className = 'dummy-thumbnail-title';
+        titleSpan.style.color = textColor;
         dummyThumbnail.appendChild(titleSpan);
         
         if (duration) {
@@ -173,7 +171,8 @@ function replacePlaylistThumbnails() {
   const playlistThumbnails = document.querySelectorAll('ytd-playlist-thumbnail, ytd-playlist-renderer, ytd-compact-radio-renderer');
   
   playlistThumbnails.forEach(thumbnail => {
-    if (thumbnail.tagName === 'YTD-PLAYLIST-THUMBNAIL' || thumbnail.tagName === 'YTD-THUMBNAIL'  ) {
+    let thumbnailElement, titleElement;
+    if (thumbnail.tagName === 'YTD-PLAYLIST-THUMBNAIL' || thumbnail.tagName === 'YTD-THUMBNAIL') {
       thumbnailElement = thumbnail.querySelector('yt-image img');
       titleElement = thumbnail.closest('ytd-rich-grid-media')?.querySelector('#video-title') ||
                      thumbnail.closest('ytd-grid-video-renderer')?.querySelector('#video-title');
@@ -190,10 +189,12 @@ function replacePlaylistThumbnails() {
       dummyThumbnail.className = 'dummy-thumbnail playlist-thumbnail';
       dummyThumbnail.style.width = `${thumbnailElement.width}px`;
       dummyThumbnail.style.height = `${thumbnailElement.height}px`;
+      dummyThumbnail.style.backgroundColor = bgColor;
       
       const titleSpan = document.createElement('span');
       titleSpan.textContent = title;
       titleSpan.className = 'dummy-thumbnail-title';
+      titleSpan.style.color = textColor;
       dummyThumbnail.appendChild(titleSpan);
       
       const wrapper = thumbnail.querySelector('#playlist-thumbnails');
@@ -212,10 +213,12 @@ function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall =
   dummyThumbnail.className = 'dummy-thumbnail';
   dummyThumbnail.style.width = `${width}px`;
   dummyThumbnail.style.height = `${height}px`;
+  dummyThumbnail.style.backgroundColor = bgColor;
   
   const titleSpan = document.createElement('span');
   titleSpan.textContent = title;
   titleSpan.className = 'dummy-thumbnail-title';
+  titleSpan.style.color = textColor;
   dummyThumbnail.appendChild(titleSpan);
   
   const durationSpan = document.createElement('span');
@@ -225,7 +228,6 @@ function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall =
   if (duration) {
     durationSpan.textContent = duration;
   } else {
-    
     const thumbnailContainer = thumbnailElement.closest('ytd-thumbnail');
     if (thumbnailContainer) {
       const observer = new MutationObserver((mutations) => {
@@ -266,10 +268,12 @@ function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
 
   const dummyThumbnail = document.createElement('div');
   dummyThumbnail.className = 'dummy-thumbnail shorts-thumbnail';
+  dummyThumbnail.style.backgroundColor = bgColor;
   
   const titleSpan = document.createElement('span');
   titleSpan.textContent = title;
   titleSpan.className = 'dummy-thumbnail-title shorts-title';
+  titleSpan.style.color = textColor;
   dummyThumbnail.appendChild(titleSpan);
   
   if (views) {
@@ -278,7 +282,6 @@ function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
     viewsSpan.className = 'dummy-thumbnail-views';
     dummyThumbnail.appendChild(viewsSpan);
   }
-  
 
   container.innerHTML = '';
   container.appendChild(dummyThumbnail);
@@ -306,7 +309,6 @@ function observeVideowall() {
     
     observer.observe(videoPlayer, { childList: true, subtree: true });
 
-   
     const playerObserver = new MutationObserver(() => {
       replaceVideowallThumbnails();
     });
@@ -339,7 +341,6 @@ function observeNewThumbnails() {
   });
 }
 
-
 const observer = new MutationObserver(mutations => {
   if (mutations.some(mutation => mutation.addedNodes.length > 0)) {
     replaceThumbnails();
@@ -350,6 +351,7 @@ observer.observe(document.body, {
   childList: true, 
   subtree: true 
 });
+
 
 // Inicjalizacja
 if (document.readyState === 'loading') {
