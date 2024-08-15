@@ -22,27 +22,29 @@ document.addEventListener('DOMContentLoaded', function() {
     var isEnabled = toggleSwitch.checked;
     chrome.storage.sync.set({enabled: isEnabled}, function() {
       updateStatus(isEnabled);
-      sendMessageToContentScript({action: isEnabled ? 'enable' : 'disable'});
+      sendMessageToActiveYouTubeTab({action: isEnabled ? 'enable' : 'disable'});
     });
   });
 
   refreshButton.addEventListener('click', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (tabs[0] && tabs[0].id) {
+      if (tabs[0] && tabs[0].url.includes('youtube.com')) {
         chrome.tabs.reload(tabs[0].id);
+      } else {
+        updateStatus('Not on YouTube', 'warning');
       }
     });
   });
 
   bgColorPicker.addEventListener('change', function() {
     chrome.storage.sync.set({bgColor: bgColorPicker.value}, function() {
-      sendMessageToContentScript({action: 'updateColors', bgColor: bgColorPicker.value});
+      sendMessageToActiveYouTubeTab({action: 'updateColors', bgColor: bgColorPicker.value});
     });
   });
 
   textColorPicker.addEventListener('change', function() {
     chrome.storage.sync.set({textColor: textColorPicker.value}, function() {
-      sendMessageToContentScript({action: 'updateColors', textColor: textColorPicker.value});
+      sendMessageToActiveYouTubeTab({action: 'updateColors', textColor: textColorPicker.value});
     });
   });
 
@@ -54,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
       bgColor: DEFAULT_BG_COLOR,
       textColor: DEFAULT_TEXT_COLOR
     }, function() {
-      sendMessageToContentScript({
+      sendMessageToActiveYouTubeTab({
         action: 'updateColors',
         bgColor: DEFAULT_BG_COLOR,
         textColor: DEFAULT_TEXT_COLOR
@@ -62,29 +64,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  function updateStatus(isEnabled) {
-    status.textContent = isEnabled ? 'On' : 'Off';
-    status.style.color = isEnabled ? '#008000' : '#cc0000';
+  function updateStatus(state, type = 'normal') {
+    if (type === 'normal') {
+      status.textContent = state ? 'On' : 'Off';
+      status.style.color = state ? '#008000' : '#cc0000';
+    } else if (type === 'warning') {
+      status.textContent = state;
+      status.style.color = '#ffa500';
+    }
   }
 
-  function sendMessageToContentScript(message) {
+  function sendMessageToActiveYouTubeTab(message) {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (tabs[0] && tabs[0].id) {
+      if (tabs[0] && tabs[0].url.includes('youtube.com')) {
         chrome.tabs.sendMessage(tabs[0].id, message, function(response) {
           if (chrome.runtime.lastError) {
             console.log("Error sending message:", chrome.runtime.lastError.message);
-            // Handle the error (e.g., show a message to the user)
-            status.textContent = "Error: YouTube page not found";
-            status.style.color = '#cc0000';
-          } else if (response && response.status === "Message received") {
-            console.log("Message successfully sent to content script");
           }
         });
       } else {
-        console.log("No active tab found");
-        // Handle the error (e.g., show a message to the user)
-        status.textContent = "Error: No active tab";
-        status.style.color = '#cc0000';
+        updateStatus('Not on YouTube', 'warning');
       }
     });
   }

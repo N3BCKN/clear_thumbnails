@@ -3,22 +3,41 @@ let bgColor = '#d3d3d3';
 let textColor = '#000080';
 
 function initializeExtension() {
-  chrome.storage.sync.get(['enabled', 'bgColor', 'textColor'], function(data) {
-    isEnabled = data.enabled !== false;
-    bgColor = data.bgColor || bgColor;
-    textColor = data.textColor || textColor;
-    if (isEnabled) {
-      checkForVideoEnd();
-      replaceThumbnails();
-      replaceMixThumbnails();
-      observeNewThumbnails();
-    }
+  chrome.runtime.sendMessage({action: 'getColors'}, function(response) {
+    bgColor = response.bgColor;
+    textColor = response.textColor;
+    
+    chrome.storage.sync.get('enabled', function(data) {
+      isEnabled = data.enabled !== false;
+      if (isEnabled) {
+        checkForVideoEnd();
+        replaceThumbnails();
+        replaceMixThumbnails();
+        observeNewThumbnails();
+      }
+    });
   });
 }
+
+// chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+//   if (request.action === 'enable') {
+//     isEnabled = true;
+//   } else if (request.action === 'disable') {
+//     isEnabled = false;
+//   } else if (request.action === 'updateColors') {
+//     if (request.bgColor) bgColor = request.bgColor;
+//     if (request.textColor) textColor = request.textColor;
+//     updateThumbnailColors();
+//   }
+//   sendResponse({status: "Message received"});
+//   return true;
+// });
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === 'enable') {
     isEnabled = true;
+    replaceThumbnails();
+    replaceMixThumbnails();
   } else if (request.action === 'disable') {
     isEnabled = false;
   } else if (request.action === 'updateColors') {
@@ -29,6 +48,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   sendResponse({status: "Message received"});
   return true;
 });
+
 
 function updateThumbnailColors() {
   const dummyThumbnails = document.querySelectorAll('.dummy-thumbnail');
@@ -151,27 +171,36 @@ function checkForVideoEnd() {
 }
 
 function replaceShortsThumbnails() {
-  const shortsContainers = document.querySelectorAll('ytm-shorts-lockup-view-model');
+  const shortsContainers = document.querySelectorAll('ytm-shorts-lockup-view-model, ytd-reel-item-renderer');
   
   shortsContainers.forEach(container => {
-    const thumbnailElement = container.querySelector('.ShortsLockupViewModelHostThumbnail');
-    const titleElement = container.querySelector('.ShortsLockupViewModelHostMetadataTitle span');
+    let thumbnailElement, titleElement, viewsElement;
+
+    if (container.tagName === 'YTM-SHORTS-LOCKUP-VIEW-MODEL') {
+      thumbnailElement = container.querySelector('.ShortsLockupViewModelHostThumbnail');
+      titleElement = container.querySelector('.ShortsLockupViewModelHostMetadataTitle span');
+      viewsElement = container.querySelector('.ShortsLockupViewModelHostMetadataSubhead span');
+    } else if (container.tagName === 'YTD-REEL-ITEM-RENDERER') {
+      thumbnailElement = container.querySelector('ytd-thumbnail img');
+      titleElement = container.querySelector('#video-title');
+      viewsElement = container.querySelector('#metadata-line .inline-metadata-item');
+    }
     
     if (thumbnailElement && titleElement && !thumbnailElement.dataset.replaced) {
       const title = titleElement.textContent.trim();
-      const viewsElement = container.querySelector('.ShortsLockupViewModelHostMetadataSubhead span');
       const views = viewsElement ? viewsElement.textContent.trim() : '';
       
-      replaceSingleShortsThumbnail(thumbnailElement, title, views);
+      replaceSingleShortsThumbnail(thumbnailElement, title, views, container);
     }
   });
 }
 
 function replacePlaylistThumbnails() {
-  const playlistThumbnails = document.querySelectorAll('ytd-playlist-thumbnail, ytd-playlist-renderer, ytd-compact-radio-renderer');
+  const playlistThumbnails = document.querySelectorAll('ytd-playlist-thumbnail, ytd-playlist-renderer, ytd-compact-radio-renderer, ytd-compact-playlist-renderer');
   
   playlistThumbnails.forEach(thumbnail => {
     let thumbnailElement, titleElement;
+
     if (thumbnail.tagName === 'YTD-PLAYLIST-THUMBNAIL' || thumbnail.tagName === 'YTD-THUMBNAIL') {
       thumbnailElement = thumbnail.querySelector('yt-image img');
       titleElement = thumbnail.closest('ytd-rich-grid-media')?.querySelector('#video-title') ||
@@ -180,6 +209,9 @@ function replacePlaylistThumbnails() {
       thumbnailElement = thumbnail.querySelector('ytd-playlist-thumbnail yt-image img');
       titleElement = thumbnail.querySelector('#video-title') || 
                      thumbnail.querySelector('h3 span#video-title');
+    } else if (thumbnail.tagName === 'YTD-COMPACT-RADIO-RENDERER' || thumbnail.tagName === 'YTD-COMPACT-PLAYLIST-RENDERER') {
+      thumbnailElement = thumbnail.querySelector('ytd-thumbnail yt-image img');
+      titleElement = thumbnail.querySelector('#video-title');
     }
     
     if (thumbnailElement && titleElement && !thumbnailElement.dataset.replaced) {
@@ -187,8 +219,8 @@ function replacePlaylistThumbnails() {
       
       const dummyThumbnail = document.createElement('div');
       dummyThumbnail.className = 'dummy-thumbnail playlist-thumbnail';
-      dummyThumbnail.style.width = `${thumbnailElement.width}px`;
-      dummyThumbnail.style.height = `${thumbnailElement.height}px`;
+      dummyThumbnail.style.width = `${thumbnailElement.width || thumbnailElement.offsetWidth}px`;
+      dummyThumbnail.style.height = `${thumbnailElement.height || thumbnailElement.offsetHeight}px`;
       dummyThumbnail.style.backgroundColor = bgColor;
       
       const titleSpan = document.createElement('span');
@@ -197,10 +229,12 @@ function replacePlaylistThumbnails() {
       titleSpan.style.color = textColor;
       dummyThumbnail.appendChild(titleSpan);
       
-      const wrapper = thumbnail.querySelector('#playlist-thumbnails');
-      wrapper.innerHTML = '';
-      wrapper.appendChild(dummyThumbnail);
-      thumbnailElement.dataset.replaced = 'true';
+      const wrapper = thumbnail.querySelector('#playlist-thumbnails') || thumbnailElement.closest('a') || thumbnailElement.parentElement;
+      if (wrapper) {
+        wrapper.innerHTML = '';
+        wrapper.appendChild(dummyThumbnail);
+        thumbnailElement.dataset.replaced = 'true';
+      }
     }
   });
 }
@@ -262,12 +296,21 @@ function replaceSingleThumbnail(thumbnailElement, title, duration, isVideowall =
   thumbnailElement.dataset.replaced = 'true';
 }
 
-function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
-  const container = thumbnailElement.closest('.ShortsLockupViewModelHostThumbnailContainer');
-  if (!container) return;
+function replaceSingleShortsThumbnail(thumbnailElement, title, views, container) {
+  let thumbnailContainer;
+  
+  if (container.tagName === 'YTM-SHORTS-LOCKUP-VIEW-MODEL') {
+    thumbnailContainer = thumbnailElement.closest('.ShortsLockupViewModelHostThumbnailContainer');
+  } else if (container.tagName === 'YTD-REEL-ITEM-RENDERER') {
+    thumbnailContainer = thumbnailElement.closest('ytd-thumbnail');
+  }
+
+  if (!thumbnailContainer) return;
 
   const dummyThumbnail = document.createElement('div');
   dummyThumbnail.className = 'dummy-thumbnail shorts-thumbnail';
+  dummyThumbnail.style.width = thumbnailElement.width + 'px';
+  dummyThumbnail.style.height = thumbnailElement.height + 'px';
   dummyThumbnail.style.backgroundColor = bgColor;
   
   const titleSpan = document.createElement('span');
@@ -283,9 +326,9 @@ function replaceSingleShortsThumbnail(thumbnailElement, title, views) {
     dummyThumbnail.appendChild(viewsSpan);
   }
 
-  container.innerHTML = '';
-  container.appendChild(dummyThumbnail);
-  container.dataset.replaced = 'true';
+  thumbnailElement.style.display = 'none';
+  thumbnailContainer.appendChild(dummyThumbnail);
+  thumbnailElement.dataset.replaced = 'true';
 }
 
 function observeVideowall() {
