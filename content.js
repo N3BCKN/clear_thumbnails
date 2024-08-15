@@ -11,6 +11,7 @@ function initializeExtension() {
     if (isEnabled) {
       checkForVideoEnd();
       replaceThumbnails();
+      replaceMixThumbnails();
       observeNewThumbnails();
       watchForURLChanges();
     }
@@ -36,6 +37,41 @@ function updateThumbnailColors() {
   dummyThumbnails.forEach(dummy => {
     dummy.style.backgroundColor = bgColor;
     dummy.querySelector('.dummy-thumbnail-title').style.color = textColor;
+  });
+}
+
+function replaceMixThumbnails() {
+  if (!isEnabled) return;
+  
+  const mixThumbnails = document.querySelectorAll('ytd-rich-item-renderer ytd-playlist-thumbnail');
+  
+  mixThumbnails.forEach(thumbnail => {
+    const container = thumbnail.closest('ytd-rich-item-renderer');
+    if (container && !container.dataset.replaced) {
+      const titleElement = container.querySelector('#video-title-link');
+      const imgElement = thumbnail.querySelector('img.yt-core-image');
+      
+      if (titleElement && imgElement) {
+        const title = titleElement.getAttribute('title') || titleElement.textContent.trim();
+        
+        const dummyThumbnail = document.createElement('div');
+        dummyThumbnail.className = 'dummy-thumbnail mix-thumbnail';
+        dummyThumbnail.style.width = imgElement.width + 'px';
+        dummyThumbnail.style.height = imgElement.height + 'px';
+        dummyThumbnail.style.backgroundColor = bgColor;
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = title;
+        titleSpan.className = 'dummy-thumbnail-title';
+        titleSpan.style.color = textColor;
+        dummyThumbnail.appendChild(titleSpan);
+        
+        imgElement.style.display = 'none';
+        imgElement.insertAdjacentElement('afterend', dummyThumbnail);
+        
+        container.dataset.replaced = 'true';
+      }
+    }
   });
 }
 
@@ -345,10 +381,10 @@ function observeNewThumbnails() {
 
 const observer = new MutationObserver(mutations => {
   if (mutations.some(mutation => mutation.addedNodes.length > 0)) {
-    observeNewThumbnails();
+    replaceThumbnails();
+    replaceMixThumbnails(); 
   }
 });
-
 observer.observe(document.body, { 
   childList: true, 
   subtree: true 
