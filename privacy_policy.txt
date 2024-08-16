@@ -1,21 +1,21 @@
 Privacy Policy for Clear Youtube Thumbnails Chrome extension
 
 
-1. What data do you collect?
+1. What data do I collect?
 This extension collects and stores your preferences for the extension's functionality, including:
 
  - Whether the extension is enabled or disabled
  - Your chosen background color for thumbnail replacements
  - Your chosen text color for thumbnail titles
 
-2. How do you use the data?
+2. How do I use the data?
 The collected data is used solely to provide and maintain the core functionality of the extension. Specifically:
 
 - To determine whether to replace YouTube thumbnails
 - To apply your chosen colors to the replacement thumbnails
 - To ensure your settings persist across browser sessions
 
-3. What data do you share?
+3. What data do I share?
 I do not transfer, share, or sell any user data collected by this extension. 
 All data is stored locally in your browser using Chrome's storage API and, if you're signed into Chrome, may be synced across your devices for consistency. 
 I have no access to this data outside of your browser environment.

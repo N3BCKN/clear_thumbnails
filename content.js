@@ -4,7 +4,7 @@ let textColor = '#000080';
 
 function initializeExtension() {
   chrome.storage.sync.get(['enabled', 'bgColor', 'textColor'], function(data) {
-    isEnabled = data.enabled === true; // Explicitely check for true
+    isEnabled = data.enabled === true; 
     bgColor = data.bgColor || bgColor;
     textColor = data.textColor || textColor;
     
