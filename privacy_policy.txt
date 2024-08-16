@@ -16,4 +16,6 @@ The collected data is used solely to provide and maintain the core functionality
 - To ensure your settings persist across browser sessions
 
 3. What data do you share?
-I do not transfer, share, or sell any user data collected by this extension. All data is stored locally in your browser using Chrome's storage API and, if you're signed into Chrome, may be synced across your devices for consistency. I have no access to this data outside of your browser environment.
+I do not transfer, share, or sell any user data collected by this extension. 
+All data is stored locally in your browser using Chrome's storage API and, if you're signed into Chrome, may be synced across your devices for consistency. 
+I have no access to this data outside of your browser environment.
