@@ -1,15 +1,25 @@
 const DEFAULT_BG_COLOR = '#d3d3d3';
 const DEFAULT_TEXT_COLOR = '#000080';
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.sync.get(['bgColor', 'textColor'], (result) => {
-    if (!result.bgColor) {
-      chrome.storage.sync.set({bgColor: DEFAULT_BG_COLOR});
-    }
-    if (!result.textColor) {
-      chrome.storage.sync.set({textColor: DEFAULT_TEXT_COLOR});
-    }
-  });
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.storage.sync.set({ 
+      enabled: true,
+      bgColor: DEFAULT_BG_COLOR,
+      textColor: DEFAULT_TEXT_COLOR
+    }, () => {
+      console.log('Extension installed and enabled by default');
+    });
+  } else {
+    chrome.storage.sync.get(['bgColor', 'textColor'], (result) => {
+      if (!result.bgColor) {
+        chrome.storage.sync.set({bgColor: DEFAULT_BG_COLOR});
+      }
+      if (!result.textColor) {
+        chrome.storage.sync.set({textColor: DEFAULT_TEXT_COLOR});
+      }
+    });
+  }
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

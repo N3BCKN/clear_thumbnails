@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const DEFAULT_BG_COLOR = '#d3d3d3';
   const DEFAULT_TEXT_COLOR = '#000080';
 
+  chrome.storage.sync.get('enabled', function(data) {
+    toggleSwitch.checked = data.enabled !== false;
+    updateStatus(toggleSwitch.checked);
+  });
+
   // Load current state and colors from chrome.storage
   chrome.storage.sync.get(['enabled', 'bgColor', 'textColor'], function(data) {
     toggleSwitch.checked = data.enabled !== false;
@@ -87,4 +92,4 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-});
+}); 
